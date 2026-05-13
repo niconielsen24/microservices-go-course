@@ -4,8 +4,11 @@ import (
 	"context"
 	"ride-sharing/services/trip-service/internal/domain"
 	pb "ride-sharing/shared/proto/trip"
+	"ride-sharing/shared/types"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type gRPCHandler struct {
@@ -26,11 +29,21 @@ func (h *gRPCHandler) PreviewTrip(ctx context.Context, req *pb.PreviewTripReques
 	pickup := req.GetPickupLocation()
 	destination := req.GetDropoffLocation()
 
-	t, err := h.service.GetRoute(ctx, pickup, destination)
+	pickupCoord := &types.Coordinate{
+		Latitude:  pickup.GetLatitude(),
+		Longitude: pickup.GetLongitude(),
+	}
+	destinationCoord := &types.Coordinate{
+		Latitude:  destination.GetLatitude(),
+		Longitude: destination.GetLongitude(),
+	}
+
+	t, err := h.service.GetRoute(ctx, pickupCoord, destinationCoord)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Failed to get route: %v", err)
 	}
 	return &pb.PreviewTripResponse{
-		Route: route,
+		Route:     t.ToProto(),
+		RideFares: []*pb.RideFare{},
 	}, nil
 }
